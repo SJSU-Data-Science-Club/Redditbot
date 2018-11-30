@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Mon Oct 22 23:25:46 2018
+Created on Thu Nov 29 22:02:08 2018
 
 @author: travisbarton
 """
+
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn import svm
@@ -105,12 +106,13 @@ def plot_confusion_matrix(cm, classes,
     plt.xlabel('Predicted label')
     plt.tight_layout()
 
-data = pd.read_csv("/Users/travisbarton/Redditbot/askscience_Data.csv")
-data = data.iloc[:, 1:]
 nlp = spacy.load('en_vectors_web_lg')
 
+data = pd.read_csv("/Users/travisbarton/Redditbot/askscience_Data.csv")
+data = data.iloc[:, 1:]
+
 Layer2_Spacy_vector = Turn_into_Spacy(data)
-data.tag = Sub_treater(data.tag, 'physics')
+data.tag = Sub_treater(data.tag, 'bio')
 
 dat = np.empty([data.shape[0], 301])
 for i in range(data.shape[0]):
@@ -128,6 +130,14 @@ y_test = y_test.reshape(len(y_test), 1).astype(int)
 y_train = onehot_encoder.fit_transform(y_train)
 y_test = onehot_encoder.fit_transform(y_test)   
 
+Layer1Data = pd.read_csv("/Users/travisbarton/Redditbot/Training_data.csv")
+Layer1Data = Layer1Data.iloc[:, 1:]
+for i in range(Layer1Data.shape[0]):
+    if Layer1Data.iloc[i, 2] == "bio":
+        X_train = np.append(X_train, np.array([nlp(Layer1Data.title[i]).vector]), axis = 0)
+        y_train = np.append(y_train, np.array([[0, 1]]), axis = 0)
+
+
 model = Sequential()
 model.add(Dense(50, input_dim = 300, activation = 'relu'))
 model.add(Dropout(.4))
@@ -139,13 +149,15 @@ model.add(Dense(2, activation = 'sigmoid'))
 model.compile(loss='binary_crossentropy', 
               optimizer='sgd', 
               metrics=['accuracy'])
-filepath="Physics_Models/weights-improvement-{epoch:02d}-{val_acc:.2f}.hdf5"
-checkpoint = ModelCheckpoint(filepath, monitor='val_acc', verbose=1, save_best_only=True, mode='max')
-callbacks_list = [checkpoint]
+filepath_bio="Bio_Models/weights-improvement-{val_acc:.2f}.hdf5"
+checkpoint_bio = ModelCheckpoint(filepath_bio, monitor='val_acc', verbose=1, save_best_only=True, mode='max')
+callbacks_list_bio = [checkpoint_bio]
 
-model.load_weights("Physics_Models/weights-improvement-148-0.86.hdf5")
+model.load_weights("Bio_Models/" + latestfile)
 model_history = model.fit(X_train[:,:300], y_train, epochs=300, batch_size=50, verbose = 1,
-          validation_data =[X_test[:,:300], y_test], callbacks=callbacks_list)
+          validation_data =[X_test[:,:300], y_test], callbacks=callbacks_list_bio)
+
+
 
 plt.figure()
 plt.subplot(211)
@@ -155,21 +167,16 @@ plt.subplot(212)
 plt.plot(model_history.history['loss'])
 plt.plot(model_history.history['val_loss'])
 
-preds = model.predict(X_test[:,:300])
+
+latestfile = "weights-improvement-19-0.91.hdf5"
+model.load_weights("Bio_Models/" + latestfile)
+preds_bio = model.predict(X_test[:,:300])
 
 
-Percent(y_test, preds)        
+#Percent(y_test, preds)        
 confm = confusion_matrix(Pred_to_num(y_test), Pred_to_num(preds))
-plot_confusion_matrix(confm, [0,1])
+print(confm)
+plot_confusion_matrix(confm, [0,1], normalize = True)
 
 
 
-
-
-
-
-
-
-
-
-        
